@@ -1,0 +1,59 @@
+# Rust
+target/
+*.rs.bk
+*.pdb
+.cargo/
+
+# Node / npm
+node_modules/
+npm-debug.log*
+.pnpm-debug.log*
+
+# Tauri
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/WixTools/
+*.msi
+*.dmg
+*.deb
+*.AppImage
+
+# IDE
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Data
+data/models/
+data/logs/
+data/cache/
+.DoneExcept
+*.gguf
+
+# Secrets
+config/secrets/
+*.pem
+*.key
+*.p12
+
+# Plugins (runtime)
+plugins/*/
+
+# Python
+__pycache__/
+*.pyc
+.venv/

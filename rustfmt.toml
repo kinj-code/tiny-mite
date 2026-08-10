@@ -1,0 +1,8 @@
+# Tiny Mite Rust formatting configuration (stable-only options)
+max_width = 100
+tab_spaces = 4
+edition = "2024"
+newline_style = "Unix"
+use_small_heuristics = "Max"
+use_field_init_shorthand = true
+use_try_shorthand = true

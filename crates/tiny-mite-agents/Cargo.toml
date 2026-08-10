@@ -1,0 +1,26 @@
+[package]
+name = "tiny-mite-agents"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Tiny Mite agent runtime: intent classification, planning, complexity estimation, and intelligence orchestration"
+
+[dependencies]
+tiny-mite-domain = { path = "../tiny-mite-domain" }
+tiny-mite-events = { path = "../tiny-mite-events" }
+tiny-mite-runtime = { path = "../tiny-mite-runtime" }
+tiny-mite-tools = { path = "../tiny-mite-tools" }
+tiny-mite-security = { path = "../tiny-mite-security" }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

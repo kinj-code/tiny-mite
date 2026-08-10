@@ -1,0 +1,33 @@
+[package]
+name = "tiny-mite-llama-cpp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Tiny Mite native llama.cpp provider with safe Rust wrappers"
+
+[dependencies]
+tiny-mite-domain = { path = "../tiny-mite-domain" }
+tiny-mite-runtime = { path = "../tiny-mite-runtime" }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+dashmap.workspace = true
+libloading = "0.8"
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints.rust]
+unsafe_code = "allow"
+
+[lints.clippy]
+missing_safety_doc = "allow"
+all = { level = "allow", priority = 1 }
+pedantic = { level = "allow", priority = 1 }
+nursery = { level = "allow", priority = 1 }
+cargo = { level = "allow", priority = 1 }

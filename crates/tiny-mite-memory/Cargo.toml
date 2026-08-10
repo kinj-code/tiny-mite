@@ -1,0 +1,24 @@
+[package]
+name = "tiny-mite-memory"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Tiny Mite memory: working, episodic, semantic, procedural, and project memory"
+
+[dependencies]
+tiny-mite-domain = { path = "../tiny-mite-domain" }
+tiny-mite-events = { path = "../tiny-mite-events" }
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+async-trait.workspace = true
+rusqlite.workspace = true
+
+[lints]
+workspace = true

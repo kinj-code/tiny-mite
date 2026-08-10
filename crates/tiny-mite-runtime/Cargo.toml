@@ -1,0 +1,28 @@
+[package]
+name = "tiny-mite-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Tiny Mite model runtime: provider abstraction, llama.cpp integration, model lifecycle"
+
+[dependencies]
+tiny-mite-domain = { path = "../tiny-mite-domain" }
+tiny-mite-events = { path = "../tiny-mite-events" }
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+dashmap.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+tokio-stream = "0.1"
+
+[dev-dependencies]
+wiremock = "0.6"
+
+[lints]
+workspace = true

@@ -1,0 +1,24 @@
+[package]
+name = "tiny-mite-security"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Tiny Mite security: capability tokens, sandbox, audit, prompt-injection defenses"
+
+[dependencies]
+tiny-mite-domain = { path = "../tiny-mite-domain" }
+tiny-mite-events = { path = "../tiny-mite-events" }
+tiny-mite-tools = { path = "../tiny-mite-tools" }
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+
+[lints]
+workspace = true

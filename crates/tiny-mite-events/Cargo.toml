@@ -1,0 +1,31 @@
+[package]
+name = "tiny-mite-events"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Tiny Mite event bus: typed events, envelopes, persistence, and replay"
+
+[dependencies]
+tiny-mite-domain = { path = "../tiny-mite-domain" }
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+dashmap.workspace = true
+rmp-serde.workspace = true
+lz4_flex.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+rusqlite.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

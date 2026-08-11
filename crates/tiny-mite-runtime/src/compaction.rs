@@ -95,7 +95,7 @@ impl ContextCompactor {
                         break;
                     }
                     if item.content.len() > self.max_content_length {
-                        let old_len = item.content.len();
+                        let _old_len = item.content.len();
                         item.content.truncate(self.max_content_length);
                         item.content.push_str("...");
                         let new_tokens = item.content.len() / 3;

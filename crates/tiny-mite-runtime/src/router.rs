@@ -88,6 +88,20 @@ impl ModelRouter {
         None
     }
 
+    /// Compatibility wrapper: find a provider and return its name and capabilities.
+    pub async fn find_provider(
+        &self,
+        required_capabilities: &ModelCapabilities,
+    ) -> Option<(String, ModelCapabilities)> {
+        if let Some(name) = self.find_provider_name(required_capabilities).await {
+            let providers = self.providers.read().await;
+            if let Some(entry) = providers.get(&name) {
+                return Some((name.clone(), entry.provider.provider_capabilities()));
+            }
+        }
+        None
+    }
+
     /// Check if a named provider is healthy and satisfies requirements.
     pub async fn check_provider(&self, name: &str, required: &ModelCapabilities) -> bool {
         let providers = self.providers.read().await;

@@ -499,7 +499,23 @@ async fn openai_completions(
     request: &InferenceRequest,
 ) -> Result<InferenceResponse, ProviderError> {
     let start = std::time::Instant::now();
-    let body = serde_json::json!({
+    // Build tool definitions if present
+    let tools = if request.tools.is_empty() {
+        serde_json::Value::Null
+    } else {
+        serde_json::json!(request.tools.iter().map(|t| {
+            serde_json::json!({
+                "type": "function",
+                "function": {
+                    "name": t.name,
+                    "description": t.description,
+                    "parameters": t.parameters
+                }
+            })
+        }).collect::<Vec<_>>())
+    };
+
+    let mut body = serde_json::json!({
         "model": &request.model_name,
         "messages": [
             {"role": "user", "content": &request.prompt}
@@ -508,6 +524,11 @@ async fn openai_completions(
         "temperature": request.temperature,
         "stream": false
     });
+
+    if !tools.is_null() {
+        body["tools"] = tools;
+        body["tool_choice"] = serde_json::json!("auto");
+    }
 
     let resp = client
         .post(&format!("{base_url}/v1/chat/completions"))
@@ -523,20 +544,40 @@ async fn openai_completions(
     let prompt_tokens = usage.as_ref().map(|u| u.prompt_tokens as usize).unwrap_or(0);
     let generated = usage.as_ref().map(|u| u.completion_tokens as usize).unwrap_or(0);
 
-    let choice = chat.choices.into_iter().next().unwrap_or(OpenAiChoice {
-        message: OpenAiMessage { content: None, reasoning_content: None },
-    });
+    let (finish_reason, content, reasoning_content, tool_calls_raw) = {
+        let choice = chat.choices.into_iter().next().unwrap_or(OpenAiChoice {
+            message: OpenAiMessage { content: None, reasoning_content: None, tool_calls: None },
+            finish_reason: None,
+        });
+        let msg = choice.message;
+        (choice.finish_reason, msg.content, msg.reasoning_content, msg.tool_calls)
+    };
+
+    // Build a temporary message for content extraction
+    let tmp_msg = OpenAiMessage { content, reasoning_content, tool_calls: None };
+    let response_text = extract_usable_content(&tmp_msg);
+
+    let native_tool_calls: Vec<crate::inference::ToolCall> = tool_calls_raw
+        .unwrap_or_default()
+        .into_iter()
+        .map(|tc| crate::inference::ToolCall {
+            id: tc.id.unwrap_or_default(),
+            name: tc.function.name,
+            arguments: tc.function.arguments,
+        })
+        .collect();
+
     Ok(InferenceResponse {
         id: request.correlation_id.map_or("".into(), |c| c.to_string()),
         model_id: request.model_id,
-        text: extract_usable_content(&choice.message),
-        finish_reason: "stop".into(),
+        text: response_text,
+        finish_reason: finish_reason.unwrap_or_else(|| "stop".into()),
         prompt_tokens,
         generated_tokens: generated,
         total_tokens: 0,
         elapsed_ms: start.elapsed().as_secs_f64() * 1000.0,
         correlation_id: request.correlation_id,
-        tool_calls: Vec::new(),
+        tool_calls: native_tool_calls,
         structured_output: None,
     })
 }
@@ -663,12 +704,29 @@ struct OpenAiChatResp {
 #[derive(Deserialize)]
 struct OpenAiChoice {
     message: OpenAiMessage,
+    #[serde(default)]
+    finish_reason: Option<String>,
 }
 #[derive(Deserialize)]
 struct OpenAiMessage {
     content: Option<String>,
     #[serde(default)]
     reasoning_content: Option<String>,
+    #[serde(default)]
+    tool_calls: Option<Vec<OpenAiToolCall>>,
+}
+#[derive(Deserialize)]
+struct OpenAiToolCall {
+    #[serde(default)]
+    id: Option<String>,
+    #[serde(rename = "type", default)]
+    call_type: Option<String>,
+    function: OpenAiToolFunction,
+}
+#[derive(Deserialize)]
+struct OpenAiToolFunction {
+    name: String,
+    arguments: serde_json::Value,
 }
 #[derive(Deserialize, Clone)]
 struct OpenAiUsage {

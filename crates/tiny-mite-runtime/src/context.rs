@@ -582,7 +582,7 @@ mod tests {
 
         // Force eviction
         zone.max_tokens = 40; // Only one item fits
-        let (idx, item) = ContextCompiler::select_eviction_target(&zone);
+        let (_idx, item) = ContextCompiler::select_eviction_target(&zone);
         // Lowest relevance item should be selected first
         assert_eq!(item.id, "r2", "Lowest relevance should be evicted first");
     }

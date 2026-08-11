@@ -44,6 +44,31 @@ TinyMite/
 
 The project should be opened as the VS Code/Cline workspace. Documentation uses relative paths so the project can live anywhere.
 
+## Quick Start
+
+### Prerequisites
+- [LM Studio](https://lmstudio.ai/) running with a local model (default: `qwopus3.5-4b-coder-mtp`)
+- Or [Ollama](https://ollama.com/) at `http://localhost:11434`
+
+### Build & Run
+```bash
+# Build
+cargo build --release --bin tiny-mite
+
+# Run a coding task
+cargo run --bin tiny-mite -- "Create a file called hello.txt containing 'Hello from Tiny Mite'"
+
+# Use a different model
+cargo run --bin tiny-mite -- --model llama3.2:3b "Explain Rust ownership"
+```
+
+### Install from release tarball
+```bash
+tar -xzf tiny-mite-0.1.0-linux-x64.tar.gz
+cd tiny-mite-0.1.0-linux-x64
+./tiny-mite.sh "Create a Python calculator with tests"
+```
+
 ## High-level loop
 
 ```text

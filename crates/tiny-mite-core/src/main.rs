@@ -3,6 +3,7 @@
 //! Configures providers, sandbox, and tools, then delegates all
 //! orchestration to [`AgentRuntime::process_async`].
 
+use std::io::{self, Write};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -47,7 +48,6 @@ fn format_trace(input: &str, result: &tiny_mite_agents::TaskResult) -> String {
     for msg in &result.conversation.messages {
         match msg {
             tiny_mite_agents::ConversationMessage::User(text) => {
-                // Skip initial user message (already shown as REQUEST)
                 if text == input { continue; }
                 trace.push_str(&format!("\n[USER]\n{text}\n"));
             }
@@ -70,47 +70,11 @@ fn format_trace(input: &str, result: &tiny_mite_agents::TaskResult) -> String {
         }
     }
 
-    // ── Tool results ───────────────────────────────────────
-    for (i, tr) in result.tool_results.iter().enumerate() {
-        match tr {
-            ToolExecutionOutcome::Success { result: tool_result, .. } => {
-                if i < result.tool_results.len() - 1 { continue; } // already shown in conversation
-                trace.push_str(&format!(
-                    "[TOOL RESULT]\nsuccess={}\noutput=\n{}\n",
-                    tool_result.success, tool_result.output
-                ));
-            }
-            other => {
-                trace.push_str(&format!("[TOOL]\nerror={:?}\n", other));
-            }
-        }
-    }
-
+    // ── Agent stats ───────────────────────────────────────
     trace.push_str(&format!(
-        "\n[VERIFICATION]\npassed={}\n",
-        result.verification_results.iter().filter(|o| o.passed).count()
-    ));
-
-    for (i, outcome) in result.verification_results.iter().enumerate() {
-        trace.push_str(&format!(
-            "  step_{}: {} ({})\n",
-            i + 1,
-            if outcome.passed { "PASS" } else { "FAIL" },
-            outcome.reason
-        ));
-    }
-
-    trace.push_str(&format!(
-        "\n[REFLECTION]\ncorrection={}\nshould_retry={}\ncorrection_detail={:?}\n\n",
-        result.reflection.has_correction,
-        result.reflection.should_retry,
-        result.reflection.correction
-    ));
-
-    trace.push_str(&format!(
-        "[AGENT]\niteration={}/{}\nmodel_calls={}\ntool_calls={}\nfailures={}\nstuck={}\ncancelled={}\nelapsed_ms={:.0}\n\n",
+        "\n[AGENT]\niteration={}/{}\nmodel_calls={}\ntool_calls={}\nfailures={}\nstuck={}\ncancelled={}\nelapsed_ms={:.0}\n\n",
         result.iterations,
-        result.iterations,  // max is tracked internally
+        result.iterations,
         result.model_calls,
         result.tool_call_count,
         result.conversation.failures,
@@ -128,6 +92,80 @@ fn format_trace(input: &str, result: &tiny_mite_agents::TaskResult) -> String {
     trace
 }
 
+// ── Interactive mode ──────────────────────────────────────────────
+
+fn interactive_mode(runtime: &AgentRuntime) {
+    println!("╔══════════════════════════════════════════════════════════╗");
+    println!("║  Tiny Mite v0.1 — Local AI Coding Agent                  ║");
+    println!("║  Type /help for commands, /quit to exit                  ║");
+    println!("╚══════════════════════════════════════════════════════════╝\n");
+
+    loop {
+        print!(">>> ");
+        io::stdout().flush().unwrap();
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap();
+        let input = input.trim();
+
+        if input.is_empty() {
+            continue;
+        }
+
+        match input {
+            "/quit" | "/exit" | "/q" => {
+                println!("Goodbye!");
+                break;
+            }
+            "/help" | "/h" => {
+                println!("Tiny Mite — Interactive Mode");
+                println!("  Type any coding task and Tiny Mite will execute it using a local LLM.");
+                println!("  Example: Create a file called hello.txt containing Hello World");
+                println!();
+                println!("  Commands:");
+                println!("    /help, /h    — Show this help");
+                println!("    /quit, /q    — Exit");
+                println!("    /model NAME  — Switch model (requires LM Studio reload)");
+                println!("    /status      — Show agent status");
+                println!();
+                continue;
+            }
+            "/status" => {
+                println!("Agent Status:");
+                println!("  Provider: LM Studio (http://localhost:1234/v1)");
+                println!("  Model: qwopus3.5-4b-coder-mtp (default)");
+                println!("  Max iterations: 8, Max model calls: 8, Max tool calls: 32");
+                println!("  Timeout: 300s");
+                println!();
+                continue;
+            }
+            s if s.starts_with("/model") => {
+                println!("Model switching requires restart. Use --model flag:");
+                println!("  tiny-mite --model <model-name>");
+                continue;
+            }
+            _ => {}
+        }
+
+        // Execute the task
+        println!("Working... (this may take 15-60 seconds with a local LLM)\n");
+
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        let task = input.to_string();
+        let result = rt.block_on(async {
+            runtime.process_async(&task).await
+        });
+
+        let trace = format_trace(&task, &result);
+        println!("{trace}");
+        println!("───────────────────────────────────────────────────────────\n");
+    }
+}
+
 // ── Main ──────────────────────────────────────────────────────────
 
 #[tokio::main]
@@ -138,27 +176,7 @@ async fn main() {
 
     let args: Vec<String> = std::env::args().collect();
 
-    if args.len() < 2 {
-        eprintln!("Usage: tiny-mite <task description>");
-        eprintln!("  Or:  tiny-mite --model <model-name> <task description>");
-        eprintln!("\nDefault model: qwopus3.5-4b-coder-mtp");
-        eprintln!("Provider: LM Studio at http://localhost:1234/v1");
-        std::process::exit(1);
-    }
-
-    let (model_name, task) = if args[1] == "--model" && args.len() >= 4 {
-        (args[2].clone(), args[3..].join(" "))
-    } else {
-        ("qwopus3.5-4b-coder-mtp".to_string(), args[1..].join(" "))
-    };
-
-    println!("╔══════════════════════════════════════════════════════════╗");
-    println!("║  Tiny Mite — Phase 10.2 Autonomous Agent Loop            ║");
-    println!("║  Model: {:<48} ║", model_name);
-    println!("║  Provider: LM Studio (http://localhost:1234/v1)          ║");
-    println!("╚══════════════════════════════════════════════════════════╝\n");
-
-    // ── Configure sandbox ──────────────────────────────────
+    // ── Configure sandbox (used by both modes) ───────────────
     let sandbox = Sandbox::new(SandboxConfig {
         allowed_paths: vec![
             std::path::PathBuf::from("/tmp"),
@@ -173,7 +191,7 @@ async fn main() {
     tool_executor.register_standard_tools();
     let tool_executor = Arc::new(Mutex::new(tool_executor));
 
-    // ── Configure provider ─────────────────────────────────
+    // ── Configure provider ──────────────────────────────────
     let provider = LmStudioProvider::new("http://localhost:1234");
 
     let caps = ModelCapabilities {
@@ -187,17 +205,38 @@ async fn main() {
     router.register("lmstudio", Box::new(provider)).await;
     let router = Arc::new(router);
 
-    // ── Build AgentRuntime — the canonical execution engine ─
+    // Default model
+    let model_name = if args.len() >= 3 && args[1] == "--model" {
+        args[2].clone()
+    } else {
+        "qwopus3.5-4b-coder-mtp".to_string()
+    };
+
+    // ── Build AgentRuntime ──────────────────────────────────
     let runtime = AgentRuntime::new(caps)
         .with_router(router)
         .with_tool_executor(tool_executor)
         .with_model_name(&model_name);
 
-    // ── Execute ────────────────────────────────────────────
-    let result = runtime.process_async(&task).await;
-    let trace = format_trace(&task, &result);
-
-    println!("{trace}");
-    println!("═══════════════════════════════════════════════════════════");
-    println!("Execution complete.");
+    // ── Interactive or one-shot mode ────────────────────────
+    if args.len() < 2 {
+        // No arguments: interactive REPL mode
+        interactive_mode(&runtime);
+    } else if args[1] == "--model" && args.len() < 4 {
+        eprintln!("Usage: tiny-mite --model <model-name> <task description>");
+        eprintln!("  Or:  tiny-mite (interactive mode)");
+        std::process::exit(1);
+    } else if args[1] == "--model" {
+        // tiny-mite --model <name> <task>
+        let task = args[3..].join(" ");
+        let result = runtime.process_async(&task).await;
+        let trace = format_trace(&task, &result);
+        println!("{trace}");
+    } else {
+        // tiny-mite <task>
+        let task = args[1..].join(" ");
+        let result = runtime.process_async(&task).await;
+        let trace = format_trace(&task, &result);
+        println!("{trace}");
+    }
 }

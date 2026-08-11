@@ -94,7 +94,7 @@ fn format_trace(input: &str, result: &tiny_mite_agents::TaskResult) -> String {
 
 // ── Interactive mode ──────────────────────────────────────────────
 
-fn interactive_mode(runtime: &AgentRuntime) {
+async fn interactive_mode(runtime: &AgentRuntime) {
     println!("╔══════════════════════════════════════════════════════════╗");
     println!("║  Tiny Mite v0.1 — Local AI Coding Agent                  ║");
     println!("║  Type /help for commands, /quit to exit                  ║");
@@ -147,18 +147,11 @@ fn interactive_mode(runtime: &AgentRuntime) {
             _ => {}
         }
 
-        // Execute the task
+        // Execute the task directly on the existing runtime
         println!("Working... (this may take 15-60 seconds with a local LLM)\n");
 
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-
         let task = input.to_string();
-        let result = rt.block_on(async {
-            runtime.process_async(&task).await
-        });
+        let result = runtime.process_async(&task).await;
 
         let trace = format_trace(&task, &result);
         println!("{trace}");
@@ -221,7 +214,7 @@ async fn main() {
     // ── Interactive or one-shot mode ────────────────────────
     if args.len() < 2 {
         // No arguments: interactive REPL mode
-        interactive_mode(&runtime);
+        interactive_mode(&runtime).await;
     } else if args[1] == "--model" && args.len() < 4 {
         eprintln!("Usage: tiny-mite --model <model-name> <task description>");
         eprintln!("  Or:  tiny-mite (interactive mode)");

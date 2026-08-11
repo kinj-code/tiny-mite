@@ -32,6 +32,7 @@ pub mod registry;
 pub mod repair;
 pub mod runtime;
 pub mod tool_executor;
+pub mod tool_parser;
 pub mod validator;
 pub mod verifier;
 
@@ -47,7 +48,8 @@ pub use planner::{ExecutionPolicy, Plan, PlanStep, Planner, RetryPolicy, Verific
 pub use reflection::{Reflection, ReflectionResult};
 pub use registry::{AgentDefinition, AgentRegistry, AgentState};
 pub use repair::RepairLoop;
-pub use runtime::AgentRuntime;
+pub use runtime::{AgentConversation, AgentLoopConfig, AgentRuntime, ConversationMessage, TaskResult};
+pub use tool_parser::{parse_tool_calls, ParsedToolCall};
 pub use tool_executor::{ToolExecutionOutcome, ToolExecutor};
 pub use validator::{PlanValidator, ValidationResult};
 pub use verifier::VerificationEngine;

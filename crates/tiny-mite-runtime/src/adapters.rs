@@ -140,7 +140,7 @@ impl ModelProvider for OllamaProvider {
     ) -> Result<InferenceResponse, ProviderError> {
         let start = std::time::Instant::now();
         let body = OllamaGenerateReq {
-            model: "llama3.2:3b".into(), // configurable
+            model: request.model_name.clone(),
             prompt: request.prompt.clone(),
             stream: false,
         };
@@ -180,7 +180,7 @@ impl ModelProvider for OllamaProvider {
         sink: mpsc::Sender<InferenceResponse>,
     ) -> Result<(), ProviderError> {
         let body = OllamaGenerateReq {
-            model: "llama3.2:3b".into(),
+            model: request.model_name.clone(),
             prompt: request.prompt.clone(),
             stream: true,
         };
@@ -500,7 +500,7 @@ async fn openai_completions(
 ) -> Result<InferenceResponse, ProviderError> {
     let start = std::time::Instant::now();
     let body = serde_json::json!({
-        "model": "gpt-4o-mini",
+        "model": &request.model_name,
         "messages": [
             {"role": "user", "content": &request.prompt}
         ],
@@ -523,15 +523,13 @@ async fn openai_completions(
     let prompt_tokens = usage.as_ref().map(|u| u.prompt_tokens as usize).unwrap_or(0);
     let generated = usage.as_ref().map(|u| u.completion_tokens as usize).unwrap_or(0);
 
-    let choice = chat
-        .choices
-        .into_iter()
-        .next()
-        .unwrap_or(OpenAiChoice { message: OpenAiMessage { content: String::new() } });
+    let choice = chat.choices.into_iter().next().unwrap_or(OpenAiChoice {
+        message: OpenAiMessage { content: None, reasoning_content: None },
+    });
     Ok(InferenceResponse {
         id: request.correlation_id.map_or("".into(), |c| c.to_string()),
         model_id: request.model_id,
-        text: choice.message.content,
+        text: extract_usable_content(&choice.message),
         finish_reason: "stop".into(),
         prompt_tokens,
         generated_tokens: generated,
@@ -550,7 +548,7 @@ async fn openai_stream(
     sink: mpsc::Sender<InferenceResponse>,
 ) -> Result<(), ProviderError> {
     let body = serde_json::json!({
-        "model": "gpt-4o-mini",
+        "model": &request.model_name,
         "messages": [{"role": "user", "content": &request.prompt}],
         "max_tokens": request.max_tokens,
         "temperature": request.temperature,
@@ -600,6 +598,32 @@ async fn openai_stream(
     Ok(())
 }
 
+// ── Content extraction ────────────────────────────────────────────
+
+/// Extract usable text from an OpenAI-compatible message.
+///
+/// If `content` is non-empty, return it. Otherwise fall back to
+/// `reasoning_content` (some reasoning models like MTP variants put
+/// the final answer inside reasoning). Prefixed with `[Reasoning]` to
+/// distinguish it from direct content.
+fn extract_usable_content(msg: &OpenAiMessage) -> String {
+    if let Some(ref content) = msg.content {
+        let trimmed = content.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+
+    if let Some(ref reasoning) = msg.reasoning_content {
+        let trimmed = reasoning.trim();
+        if !trimmed.is_empty() {
+            return format!("[Reasoning] {trimmed}");
+        }
+    }
+
+    String::new()
+}
+
 // ── JSON types ────────────────────────────────────────────────────
 
 #[derive(Deserialize)]
@@ -642,7 +666,9 @@ struct OpenAiChoice {
 }
 #[derive(Deserialize)]
 struct OpenAiMessage {
-    content: String,
+    content: Option<String>,
+    #[serde(default)]
+    reasoning_content: Option<String>,
 }
 #[derive(Deserialize, Clone)]
 struct OpenAiUsage {
@@ -699,14 +725,21 @@ mod tests {
         let result = provider
             .generate(&InferenceRequest {
                 model_id: ModelId::new(),
+                model_name: "test-model".into(),
                 prompt: "hi".into(),
                 max_tokens: 100,
                 temperature: 0.7,
                 top_p: None,
                 top_k: None,
+                seed: None,
+                stop_sequences: Vec::new(),
+                grammar: None,
+                tools: Vec::new(),
                 system_prompt: None,
                 correlation_id: None,
-                context_items: Vec::new(),
+                task_id: None,
+                timeout_ms: None,
+                context_budget: crate::inference::ContextBudget::new(4096),
             })
             .await
             .unwrap();
@@ -727,14 +760,21 @@ mod tests {
             provider
                 .generate(&InferenceRequest {
                     model_id: ModelId::new(),
+                    model_name: "test-model".into(),
                     prompt: "x".into(),
                     max_tokens: 1,
                     temperature: 0.0,
                     top_p: None,
                     top_k: None,
+                    seed: None,
+                    stop_sequences: Vec::new(),
+                    grammar: None,
+                    tools: Vec::new(),
                     system_prompt: None,
                     correlation_id: None,
-                    context_items: Vec::new()
+                    task_id: None,
+                    timeout_ms: None,
+                    context_budget: crate::inference::ContextBudget::new(4096),
                 })
                 .await
                 .is_err()
@@ -771,14 +811,21 @@ mod tests {
         let provider = OpenAiProvider::new(server.uri());
         let req = InferenceRequest {
             model_id: ModelId::new(),
+            model_name: "test-model".into(),
             prompt: "hello".into(),
             max_tokens: 10,
             temperature: 0.5,
             top_p: None,
             top_k: None,
+            seed: None,
+            stop_sequences: Vec::new(),
+            grammar: None,
+            tools: Vec::new(),
             system_prompt: None,
             correlation_id: None,
-            context_items: Vec::new(),
+            task_id: None,
+            timeout_ms: None,
+            context_budget: crate::inference::ContextBudget::new(4096),
         };
         let result = provider.generate(&req).await.unwrap();
         assert_eq!(result.text, "Hi!");

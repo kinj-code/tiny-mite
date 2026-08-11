@@ -1,0 +1,37 @@
+{
+  "model": "qwopus3.5-4b-coder-mtp",
+  "model_family": "Qwen3.5",
+  "parameters": "4B",
+  "provider": "LM Studio",
+  "endpoint": "http://localhost:1234/v1",
+  "quantization": "GGUF (default)",
+  "sampling": {
+    "temperature": 0.7,
+    "top_p": null,
+    "top_k": null,
+    "max_tokens": 2048
+  },
+  "context_length": 8192,
+  "systems_compared": ["raw", "tiny_mite"],
+  "task_count": 10,
+  "trials_per_task_per_system": 10,
+  "total_trials": 200,
+  "timeout_per_task_seconds": 300,
+  "max_iterations_raw": 8,
+  "max_iterations_tiny_mite": 8,
+  "sandbox": {
+    "allowed_paths": ["/tmp", "current_working_directory"],
+    "allow_shell": true,
+    "allow_network": false
+  },
+  "date": "2026-08-11",
+  "git_commit": "7336b8bc18991d7b26000ab4710c9f756e06fccb",
+  "published_baseline": {
+    "source": "https://huggingface.co/Jackrong/Qwopus3.5-4B-Coder-MTP-GGUF",
+    "suite_average": 82.0,
+    "toolcall_15": 100,
+    "bugfind_15": 71,
+    "hermesagent_20": 64,
+    "instructfollow_15": 93
+  }
+}

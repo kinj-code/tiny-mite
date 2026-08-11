@@ -7,9 +7,17 @@ repository.workspace = true
 rust-version.workspace = true
 description = "Tiny Mite core: configuration, logging, error handling, and application bootstrap"
 
+[[bin]]
+name = "tiny-mite"
+path = "src/main.rs"
+
 [dependencies]
 tiny-mite-domain = { path = "../tiny-mite-domain" }
 tiny-mite-events = { path = "../tiny-mite-events" }
+tiny-mite-runtime = { path = "../tiny-mite-runtime" }
+tiny-mite-agents = { path = "../tiny-mite-agents" }
+tiny-mite-tools = { path = "../tiny-mite-tools" }
+tiny-mite-security = { path = "../tiny-mite-security" }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
@@ -19,6 +27,7 @@ async-trait.workspace = true
 toml.workspace = true
 directories.workspace = true
 thiserror.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 [dev-dependencies]
 tempfile.workspace = true

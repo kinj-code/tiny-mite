@@ -70,6 +70,8 @@ pub struct PlanStep {
     pub required_capabilities: Vec<String>,
     /// Tools needed for this step.
     pub tools: Vec<String>,
+    /// Arguments for the tool invocation (e.g. file paths, command args).
+    pub args: Vec<String>,
     /// Expected output description.
     pub expected_output: String,
     /// How to verify this step's output.
@@ -96,6 +98,7 @@ impl PlanStep {
             dependencies: Vec::new(),
             required_capabilities: vec!["text_generation".into()],
             tools: Vec::new(),
+            args: Vec::new(),
             expected_output: String::new(),
             verification: VerificationPolicy::None,
             retry_policy: RetryPolicy::NoRetry,
@@ -138,6 +141,13 @@ impl PlanStep {
     #[must_use]
     pub fn with_tools(mut self, tools: Vec<String>) -> Self {
         self.tools = tools;
+        self
+    }
+
+    /// Set tool arguments.
+    #[must_use]
+    pub fn with_args(mut self, args: Vec<String>) -> Self {
+        self.args = args;
         self
     }
 }

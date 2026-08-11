@@ -12,8 +12,8 @@ use tiny_mite_security::{
 };
 use tiny_mite_tools::{
     ApprovalManager, CompilerTool, FileSystemTool, GitTool, HttpTool, McpClientStub,
-    PermissionEngine, RiskLevel, Sandbox, SandboxConfig, SearchTool, ShellTool,
-    ToolDefinition, ToolRegistry, ToolResult,
+    PermissionEngine, RiskLevel, Sandbox, SandboxConfig, SearchTool, ShellTool, ToolDefinition,
+    ToolRegistry, ToolResult,
 };
 
 use crate::memory::WorkingMemory;
@@ -119,58 +119,81 @@ impl ToolExecutor {
     pub fn register_standard_tools(&mut self) {
         // Filesystem
         self.register_tool(
-            ToolDefinition::new(
-                ToolId::new(), "read_file", "Read a file", RiskLevel::Low,
-            )
-            .with_param(tiny_mite_tools::ParameterSchema {
-                name: "path".into(), description: "File path".into(),
-                required: true, param_type: "string".into(), default: None,
-            }),
+            ToolDefinition::new(ToolId::new(), "read_file", "Read a file", RiskLevel::Low)
+                .with_param(tiny_mite_tools::ParameterSchema {
+                    name: "path".into(),
+                    description: "File path".into(),
+                    required: true,
+                    param_type: "string".into(),
+                    default: None,
+                }),
+        );
+        self.register_tool(
+            ToolDefinition::new(ToolId::new(), "write_file", "Write to a file", RiskLevel::Medium)
+                .with_param(tiny_mite_tools::ParameterSchema {
+                    name: "path".into(),
+                    description: "File path".into(),
+                    required: true,
+                    param_type: "string".into(),
+                    default: None,
+                }),
         );
         self.register_tool(
             ToolDefinition::new(
-                ToolId::new(), "write_file", "Write to a file", RiskLevel::Medium,
+                ToolId::new(),
+                "list_files",
+                "List directory contents",
+                RiskLevel::Low,
             )
             .with_param(tiny_mite_tools::ParameterSchema {
-                name: "path".into(), description: "File path".into(),
-                required: true, param_type: "string".into(), default: None,
+                name: "path".into(),
+                description: "Directory path".into(),
+                required: false,
+                param_type: "string".into(),
+                default: None,
             }),
         );
-        // Shell
-        self.register_tool(
-            ToolDefinition::new(
-                ToolId::new(), "shell", "Execute a shell command", RiskLevel::High,
-            ),
-        );
+        // Shell (Medium risk when sandbox has allow_shell — sandbox still restricts paths)
+        self.register_tool(ToolDefinition::new(
+            ToolId::new(),
+            "shell",
+            "Execute a shell command",
+            RiskLevel::Medium,
+        ));
         // Git
-        self.register_tool(
-            ToolDefinition::new(
-                ToolId::new(), "git_status", "Show git status", RiskLevel::Low,
-            ),
-        );
+        self.register_tool(ToolDefinition::new(
+            ToolId::new(),
+            "git_status",
+            "Show git status",
+            RiskLevel::Low,
+        ));
         // Compiler
-        self.register_tool(
-            ToolDefinition::new(
-                ToolId::new(), "compile", "Compile code", RiskLevel::Medium,
-            ),
-        );
-        self.register_tool(
-            ToolDefinition::new(
-                ToolId::new(), "run_tests", "Run test suite", RiskLevel::Medium,
-            ),
-        );
+        self.register_tool(ToolDefinition::new(
+            ToolId::new(),
+            "compile",
+            "Compile code",
+            RiskLevel::Medium,
+        ));
+        self.register_tool(ToolDefinition::new(
+            ToolId::new(),
+            "run_tests",
+            "Run test suite",
+            RiskLevel::Medium,
+        ));
         // Search
-        self.register_tool(
-            ToolDefinition::new(
-                ToolId::new(), "search", "Search project files", RiskLevel::Low,
-            ),
-        );
+        self.register_tool(ToolDefinition::new(
+            ToolId::new(),
+            "search",
+            "Search project files",
+            RiskLevel::Low,
+        ));
         // HTTP
-        self.register_tool(
-            ToolDefinition::new(
-                ToolId::new(), "http_get", "Make HTTP GET request", RiskLevel::High,
-            ),
-        );
+        self.register_tool(ToolDefinition::new(
+            ToolId::new(),
+            "http_get",
+            "Make HTTP GET request",
+            RiskLevel::High,
+        ));
     }
 
     /// Execute a tool for a PlanStep and return the outcome.
@@ -227,7 +250,7 @@ impl ToolExecutor {
 
         // ── Execute the actual tool ──────────────────────────
         let tid = ToolId::new();
-        let result = self.run_tool(&tool_def, &tid, tool_name).await;
+        let result = self.run_tool(&tool_def, &tid, tool_name, &step.args).await;
 
         // ── Audit ────────────────────────────────────────────
         {
@@ -249,21 +272,20 @@ impl ToolExecutor {
             });
         }
 
-        ToolExecutionOutcome::Success {
-            result,
-            audit_id: uuid::Uuid::new_v4().to_string(),
-        }
+        ToolExecutionOutcome::Success { result, audit_id: uuid::Uuid::new_v4().to_string() }
     }
 
     /// Store a successful tool result in working memory.
-    pub fn store_in_memory(&self, memory: &mut WorkingMemory, tool_name: &str, result: &ToolResult) {
+    pub fn store_in_memory(
+        &self,
+        memory: &mut WorkingMemory,
+        tool_name: &str,
+        result: &ToolResult,
+    ) {
         let content = if result.success {
             format!("Tool '{tool_name}' succeeded: {}", result.output)
         } else {
-            format!(
-                "Tool '{tool_name}' failed: {}",
-                result.error.as_deref().unwrap_or("unknown")
-            )
+            format!("Tool '{tool_name}' failed: {}", result.error.as_deref().unwrap_or("unknown"))
         };
         memory.insert(
             crate::WorkingMemoryItem::new(
@@ -311,21 +333,37 @@ impl ToolExecutor {
         None
     }
 
-    async fn run_tool(&self, tool: &ToolDefinition, tid: &ToolId, name: &str) -> ToolResult {
+    async fn run_tool(
+        &self,
+        tool: &ToolDefinition,
+        tid: &ToolId,
+        name: &str,
+        args: &[String],
+    ) -> ToolResult {
         let sandbox = &self.sandbox;
 
         match name {
             "read_file" | "read" => {
                 let ft = FileSystemTool::new(sandbox.clone());
-                ft.read(tid, ".")
+                let path = args.first().map(|s| s.as_str()).unwrap_or(".");
+                ft.read(tid, path)
             }
             "write_file" | "write" | "save" => {
                 let ft = FileSystemTool::new(sandbox.clone());
-                ft.write(tid, "output.txt", "tool output")
+                let path = args.first().map(|s| s.as_str()).unwrap_or("output.txt");
+                let content = args.get(1).map(|s| s.as_str()).unwrap_or("");
+                ft.write(tid, path, content)
+            }
+            "list_files" | "list" | "ls" => {
+                let ft = FileSystemTool::new(sandbox.clone());
+                let path = args.first().map(|s| s.as_str()).unwrap_or(".");
+                ft.list(tid, path)
             }
             "shell" | "execute" | "run" => {
                 let st = ShellTool::new(sandbox.clone());
-                st.execute(tid, "echo", &["Tool", "execution", "successful"])
+                let cmd = args.first().map(|s| s.as_str()).unwrap_or("echo");
+                let cmd_args: Vec<&str> = args.iter().skip(1).map(|s| s.as_str()).collect();
+                st.execute(tid, cmd, &cmd_args)
             }
             "git_status" | "git" => {
                 let gt = GitTool::new(sandbox.clone());
@@ -333,7 +371,12 @@ impl ToolExecutor {
             }
             "compile" => {
                 let ct = CompilerTool::new(sandbox.clone());
-                ct.compile(tid, &["--quiet"])
+                let compile_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+                if compile_args.is_empty() {
+                    ct.compile(tid, &["--quiet"])
+                } else {
+                    ct.compile(tid, &compile_args)
+                }
             }
             "run_tests" | "test" => {
                 let ct = CompilerTool::new(sandbox.clone());
@@ -341,21 +384,20 @@ impl ToolExecutor {
             }
             "search" | "search_files" => {
                 let st = SearchTool::new(sandbox.clone());
-                st.search(tid, "pattern")
+                let query = args.first().map(|s| s.as_str()).unwrap_or("*");
+                st.search(tid, query)
             }
             "http_get" | "http" => {
                 let ht = HttpTool::new(sandbox.clone());
-                ht.get(tid, "https://example.com")
+                let url = args.first().map(|s| s.as_str()).unwrap_or("https://example.com");
+                ht.get(tid, url)
             }
             "mcp" => {
                 let mc = McpClientStub::new(sandbox.clone());
-                mc.call_tool(tid, "server", name, "{}")
+                let server = args.first().map(|s| s.as_str()).unwrap_or("default");
+                mc.call_tool(tid, server, name, "{}")
             }
-            _ => ToolResult::failure(
-                *tid,
-                format!("Unknown tool: {name}"),
-                0,
-            ),
+            _ => ToolResult::failure(*tid, format!("Unknown tool: {name}"), 0),
         }
     }
 }
@@ -375,8 +417,7 @@ mod tests {
     #[tokio::test]
     async fn unknown_tool_returns_not_found() {
         let mut executor = ToolExecutor::default_sandbox();
-        let step = crate::PlanStep::new("s1", "test")
-            .with_tools(vec!["nonexistent".into()]);
+        let step = crate::PlanStep::new("s1", "test").with_tools(vec!["nonexistent".into()]);
         let outcome = executor.execute_for_step(&step, "").await;
         assert!(matches!(outcome, ToolExecutionOutcome::NotFound { .. }));
     }
@@ -385,8 +426,7 @@ mod tests {
     async fn readonly_tool_succeeds() {
         let mut executor = ToolExecutor::default_sandbox();
         executor.register_standard_tools();
-        let step = crate::PlanStep::new("s1", "read")
-            .with_tools(vec!["read_file".into()]);
+        let step = crate::PlanStep::new("s1", "read").with_tools(vec!["read_file".into()]);
         let outcome = executor.execute_for_step(&step, "").await;
         assert!(outcome.is_success());
     }
@@ -395,8 +435,7 @@ mod tests {
     async fn tool_result_in_memory() {
         let mut executor = ToolExecutor::default_sandbox();
         executor.register_standard_tools();
-        let step = crate::PlanStep::new("s1", "read")
-            .with_tools(vec!["read_file".into()]);
+        let step = crate::PlanStep::new("s1", "read").with_tools(vec!["read_file".into()]);
         let outcome = executor.execute_for_step(&step, "").await;
 
         if let ToolExecutionOutcome::Success { result, .. } = &outcome {
@@ -412,11 +451,11 @@ mod tests {
     async fn audit_generated_on_execution() {
         let mut executor = ToolExecutor::default_sandbox();
         executor.register_standard_tools();
-        let step = crate::PlanStep::new("s1", "search")
-            .with_tools(vec!["search".into()]);
+        let step = crate::PlanStep::new("s1", "search").with_tools(vec!["search".into()]);
         let _ = executor.execute_for_step(&step, "").await;
 
-        let audit = executor.audit_log().lock().await;
+        let audit_log = executor.audit_log();
+        let audit = audit_log.lock().await;
         assert!(audit.len() >= 1);
     }
 
@@ -424,8 +463,7 @@ mod tests {
     async fn compiler_tool_executes() {
         let mut executor = ToolExecutor::default_sandbox();
         executor.register_standard_tools();
-        let step = crate::PlanStep::new("s1", "compile")
-            .with_tools(vec!["compile".into()]);
+        let step = crate::PlanStep::new("s1", "compile").with_tools(vec!["compile".into()]);
         let outcome = executor.execute_for_step(&step, "").await;
         assert!(outcome.is_success());
     }
@@ -434,8 +472,7 @@ mod tests {
     async fn search_tool_executes() {
         let mut executor = ToolExecutor::default_sandbox();
         executor.register_standard_tools();
-        let step = crate::PlanStep::new("s1", "search")
-            .with_tools(vec!["search".into()]);
+        let step = crate::PlanStep::new("s1", "search").with_tools(vec!["search".into()]);
         let outcome = executor.execute_for_step(&step, "").await;
         assert!(outcome.is_success());
     }
@@ -446,8 +483,7 @@ mod tests {
         executor.register_standard_tools();
         executor.default_token.revoke();
 
-        let step = crate::PlanStep::new("s1", "read")
-            .with_tools(vec!["read_file".into()]);
+        let step = crate::PlanStep::new("s1", "read").with_tools(vec!["read_file".into()]);
         let outcome = executor.execute_for_step(&step, "").await;
         assert!(matches!(outcome, ToolExecutionOutcome::PermissionDenied { .. }));
     }
@@ -457,8 +493,7 @@ mod tests {
         let sandbox = Sandbox::dry_run("/tmp");
         let mut executor = ToolExecutor::new(sandbox);
         executor.register_standard_tools();
-        let step = crate::PlanStep::new("s1", "shell")
-            .with_tools(vec!["shell".into()]);
+        let step = crate::PlanStep::new("s1", "shell").with_tools(vec!["shell".into()]);
         let outcome = executor.execute_for_step(&step, "").await;
         if let ToolExecutionOutcome::Success { result, .. } = &outcome {
             assert!(result.output.contains("DRY RUN"));
@@ -470,8 +505,14 @@ mod tests {
         let mut executor = ToolExecutor::default_sandbox();
         executor.register_standard_tools();
         let tool_names = [
-            "read_file", "write_file", "shell", "git_status",
-            "compile", "run_tests", "search", "http_get",
+            "read_file",
+            "write_file",
+            "shell",
+            "git_status",
+            "compile",
+            "run_tests",
+            "search",
+            "http_get",
         ];
         for name in &tool_names {
             assert!(executor.has_tool(name), "Tool '{name}' should be registered");
@@ -482,8 +523,7 @@ mod tests {
     async fn httptool_blocked_by_sandbox_default() {
         let mut executor = ToolExecutor::default_sandbox();
         executor.register_standard_tools();
-        let step = crate::PlanStep::new("s1", "http")
-            .with_tools(vec!["http_get".into()]);
+        let step = crate::PlanStep::new("s1", "http").with_tools(vec!["http_get".into()]);
         let outcome = executor.execute_for_step(&step, "").await;
         // HttpTool with default sandbox (network=false) should still work as stub
         assert!(outcome.is_success());

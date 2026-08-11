@@ -333,6 +333,7 @@ mod tests {
 
         let request = InferenceRequest {
             model_id: id,
+            model_name: "test-model".into(),
             prompt: "Hello".to_owned(),
             system_prompt: None,
             max_tokens: 100,
@@ -363,6 +364,7 @@ mod tests {
         let (tx, mut rx) = tokio::sync::mpsc::channel(16);
         let request = InferenceRequest {
             model_id: id,
+            model_name: "test-model".into(),
             prompt: "Hi".to_owned(),
             system_prompt: None,
             max_tokens: 50,
@@ -402,6 +404,7 @@ mod tests {
         let (tx, _rx) = tokio::sync::mpsc::channel(16);
         let request = InferenceRequest {
             model_id: id,
+            model_name: "test-model".into(),
             prompt: "test".to_owned(),
             system_prompt: None,
             max_tokens: 50,

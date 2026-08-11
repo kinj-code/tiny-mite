@@ -229,19 +229,13 @@ mod tests {
 
     #[test]
     fn capabilities_detect_generation() {
-        let cap = ModelCapabilities {
-            text_generation: true,
-            ..Default::default()
-        };
+        let cap = ModelCapabilities { text_generation: true, ..Default::default() };
         assert!(cap.can_generate());
     }
 
     #[test]
     fn capabilities_detect_tool_use() {
-        let cap = ModelCapabilities {
-            tool_calling: true,
-            ..Default::default()
-        };
+        let cap = ModelCapabilities { tool_calling: true, ..Default::default() };
         assert!(cap.can_use_tools());
     }
 }

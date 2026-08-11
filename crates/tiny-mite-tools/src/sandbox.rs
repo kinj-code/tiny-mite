@@ -92,9 +92,22 @@ impl Sandbox {
             candidate
         };
 
-        // Canonicalize to resolve symlinks
-        let canonical = std::fs::canonicalize(&resolved)
-            .map_err(|e| format!("Path not accessible: {path}: {e}"))?;
+        // Try canonicalize for existing paths; fall back to parent canonicalize
+        // for paths that don't exist yet (e.g. write_file targets)
+        let canonical = match std::fs::canonicalize(&resolved) {
+            Ok(c) => c,
+            Err(_) => {
+                // File doesn't exist yet — check parent directory
+                if let Some(parent) = resolved.parent() {
+                    let parent_canonical = std::fs::canonicalize(parent).map_err(|e| {
+                        format!("Parent directory not accessible: {}: {e}", parent.display())
+                    })?;
+                    parent_canonical.join(resolved.file_name().unwrap_or_default())
+                } else {
+                    return Err(format!("Path not accessible: {path}"));
+                }
+            }
+        };
 
         // Verify the canonical path stays within allowed roots
         let allowed = self.config.allowed_paths.iter().any(|root| canonical.starts_with(root));

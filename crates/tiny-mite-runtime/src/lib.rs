@@ -22,6 +22,7 @@ pub mod embedding;
 pub mod grammar;
 pub mod inference;
 pub mod model;
+pub mod protocol;
 pub mod provider;
 pub mod reliability;
 pub mod reranker;

@@ -10,6 +10,7 @@ use tokio::sync::RwLock;
 
 use tiny_mite_domain::ModelId;
 
+use crate::inference::{InferenceRequest, InferenceResponse};
 use crate::model::{Backend, DeviceInfo, ModelCapabilities, ModelInfo, ModelState};
 use crate::provider::{ModelProvider, ProviderError};
 
@@ -132,6 +133,28 @@ impl ModelRouter {
                 }
             }
         }
+    }
+
+    /// Generate a response using the best matching healthy provider.
+    ///
+    /// Finds a provider that satisfies `required_capabilities`, then
+    /// delegates the inference call to it.
+    pub async fn generate(
+        &self,
+        required_capabilities: &ModelCapabilities,
+        request: &InferenceRequest,
+    ) -> Result<InferenceResponse, ProviderError> {
+        let name = self
+            .find_provider_name(required_capabilities)
+            .await
+            .ok_or_else(|| ProviderError::Internal("No matching healthy provider found".into()))?;
+
+        let providers = self.providers.read().await;
+        let entry = providers
+            .get(&name)
+            .ok_or_else(|| ProviderError::Internal(format!("Provider '{name}' disappeared")))?;
+
+        entry.provider.generate(request).await
     }
 
     /// Get healthy provider count.

@@ -98,8 +98,10 @@ impl fmt::Display for ContextBudget {
 /// The `system_prompt` is treated as instructions, not user data.
 #[derive(Debug, Clone)]
 pub struct InferenceRequest {
-    /// Model to use for inference.
+    /// Model to use for inference (internal routing ID).
     pub model_id: ModelId,
+    /// The provider-specific model name (e.g. "llama3.2:3b", "qwen2.5-7b-instruct").
+    pub model_name: String,
     /// The main prompt or conversation text.
     pub prompt: String,
     /// Optional system-level instructions.

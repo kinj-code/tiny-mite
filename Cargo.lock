@@ -1488,8 +1488,12 @@ dependencies = [
  "tiny-mite-domain",
  "tiny-mite-events",
  "tiny-mite-runtime",
+ "tiny-mite-scheduler",
+ "tiny-mite-security",
+ "tiny-mite-tools",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -1498,12 +1502,17 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "directories",
+ "reqwest",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror",
+ "tiny-mite-agents",
  "tiny-mite-domain",
  "tiny-mite-events",
+ "tiny-mite-runtime",
+ "tiny-mite-security",
+ "tiny-mite-tools",
  "tokio",
  "toml",
  "tracing",

@@ -43,12 +43,14 @@ impl ModelRouter {
     /// Register a provider.
     pub async fn register(&mut self, name: impl Into<String>, provider: Box<dyn ModelProvider>) {
         let name = name.into();
+        // Check initial health
+        let healthy = provider.health_check().await.is_ok();
         let mut providers = self.providers.write().await;
         providers.insert(
             name.clone(),
             ProviderEntry {
                 provider,
-                healthy: true,
+                healthy,
                 last_checked: chrono::Utc::now(),
                 models: Vec::new(),
             },

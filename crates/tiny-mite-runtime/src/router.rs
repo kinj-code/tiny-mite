@@ -188,6 +188,7 @@ mod tests {
     use crate::inference::{InferenceRequest, InferenceResponse};
     use async_trait::async_trait;
 
+    #[derive(Debug, Clone)]
     struct MockProvider {
         name: &'static str,
         caps: ModelCapabilities,
@@ -200,7 +201,7 @@ mod tests {
             self.name
         }
         fn provider_capabilities(&self) -> ModelCapabilities {
-            self.caps
+            self.caps.clone()
         }
 
         async fn discover_models(&self) -> Result<Vec<ModelInfo>, ProviderError> {
@@ -248,7 +249,7 @@ mod tests {
 
     #[tokio::test]
     async fn router_finds_capable_provider() {
-        let router = ModelRouter::new();
+        let mut router = ModelRouter::new();
         router
             .register(
                 "ollama",
@@ -272,7 +273,7 @@ mod tests {
 
     #[tokio::test]
     async fn router_skips_unhealthy_provider() {
-        let router = ModelRouter::new();
+        let mut router = ModelRouter::new();
         router
             .register(
                 "bad",
@@ -291,7 +292,7 @@ mod tests {
 
     #[tokio::test]
     async fn router_filters_by_capabilities() {
-        let router = ModelRouter::new();
+        let mut router = ModelRouter::new();
         router
             .register(
                 "chat_only",
@@ -331,7 +332,7 @@ mod tests {
 
     #[tokio::test]
     async fn health_check_marks_unhealthy() {
-        let router = ModelRouter::new();
+        let mut router = ModelRouter::new();
         router
             .register(
                 "flaky",

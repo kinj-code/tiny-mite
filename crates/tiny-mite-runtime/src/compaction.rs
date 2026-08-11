@@ -161,7 +161,11 @@ mod tests {
             pinned: false,
             sensitivity: crate::context::Sensitivity::Public,
             timestamp: Utc::now(),
-            metadata: Default::default(),
+            source_id: None,
+            correlation_id: None,
+            task_id: None,
+            memory_id: None,
+            document_id: None,
         }
     }
 

@@ -62,13 +62,13 @@ impl ContextCompactor {
             target_met: false,
         };
 
-        if tokens_before <= self.budget {
+        let mut items = items;
+
+        if tokens_before <= self.budget && self.strategy != CompactionStrategy::MergeAdjacent {
             result.tokens_after = tokens_before;
             result.target_met = true;
             return (items, result);
         }
-
-        let mut items = items;
 
         match self.strategy {
             CompactionStrategy::DropOldest => {
@@ -108,6 +108,10 @@ impl ContextCompactor {
             CompactionStrategy::MergeAdjacent => {
                 // Merge adjacent items of the same type to reduce overhead
                 let mut merged = Vec::new();
+                // debug: print initial types
+                for (idx, it) in items.iter().enumerate() {
+                    eprintln!("pre[{}] = {:?}", idx, it.item_type);
+                }
                 let mut i = 0;
                 while i < items.len() {
                     if i + 1 < items.len()

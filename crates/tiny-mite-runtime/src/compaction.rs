@@ -110,7 +110,10 @@ impl ContextCompactor {
                 let mut merged = Vec::new();
                 let mut i = 0;
                 while i < items.len() {
-                    if i + 1 < items.len() && items[i].item_type == items[i + 1].item_type {
+                    if i + 1 < items.len()
+                        && std::mem::discriminant(&items[i].item_type)
+                            == std::mem::discriminant(&items[i + 1].item_type)
+                    {
                         let mut combined = items[i].content.clone();
                         combined.push_str(" | ");
                         combined.push_str(&items[i + 1].content);
